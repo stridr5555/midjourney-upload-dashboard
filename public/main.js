@@ -32,22 +32,6 @@ function createBatchFromImages(images = [], promptText = 'Midjourney selection')
   return true;
 }
 
-function generateBatch() {
-  currentBatch = Array.from({ length: 16 }, (_, i) => {
-    const prompt = basePrompts[Math.floor(Math.random() * basePrompts.length)];
-    return {
-      id: `prompt-${Date.now()}-${i}`,
-      prompt: `${prompt} :: Variation ${i + 1}`,
-      probability: getRandomStat(),
-      edge: (Math.random() * 0.1 + 0.01).toFixed(2),
-      leverage: getRandomLeverage(),
-      status: i % 3 === 0 ? 'Open trades' : 'Ready',
-      image: `https://images.unsplash.com/photo-1${Math.random().toString().slice(2, 5)}?auto=format&fit=crop&w=600&q=60`
-    };
-  });
-  renderBatch();
-}
-
 function renderBatch() {
   grid.innerHTML = '';
   currentBatch.forEach(card => {
@@ -124,8 +108,8 @@ async function loadSampleBatch() {
 
 document.getElementById('generate-prompts').addEventListener('click', () => {
   const prompt = basePrompts[Math.floor(Math.random() * basePrompts.length)];
-  promptEditor.value = `${prompt} :: ${new Date().toLocaleString()} Gemini remix`;
-  updateStatus('Prompt refreshed with Gemini insights.');
+  promptEditor.value = prompt;
+  updateStatus('Prompt refreshed.');
 });
 
 document.getElementById('fetch-batch').addEventListener('click', async () => {
@@ -133,8 +117,7 @@ document.getElementById('fetch-batch').addEventListener('click', async () => {
   if (!loaded) {
     const fallback = await loadSampleBatch();
     if (!fallback) {
-      generateBatch();
-      updateStatus('Fallback random assets loaded.');
+      updateStatus('Unable to load sample batch.');
     }
   }
 });
@@ -154,7 +137,7 @@ document.getElementById('upload-selection').addEventListener('click', () => {
   if (!loaded) {
     const sample = await loadSampleBatch();
     if (!sample) {
-      generateBatch();
+      updateStatus('Unable to load sample batch.');
     }
   }
 })();
