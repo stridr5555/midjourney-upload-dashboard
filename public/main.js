@@ -8,17 +8,6 @@ const basePrompts = [
   'Mechanical butterfly close-up, macro depth, soft focus',
   'Celestial library, dramatic shafts of light, endless shelves'
 ];
-const assetImages = [
-  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=60',
-  'https://images.unsplash.com/photo-1482192597420-4817fdd3ea7e?auto=format&fit=crop&w=600&q=60',
-  'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=60',
-  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=60',
-  'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=600&q=60',
-  'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=60',
-  'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=600&q=60',
-  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=60'
-];
-
 const grid = document.getElementById('grid');
 const promptEditor = document.getElementById('prompt-editor');
 const status = document.getElementById('status');
@@ -27,6 +16,21 @@ let selection = new Set();
 
 const getRandomStat = () => (Math.random() * 0.35 + 0.65).toFixed(2);
 const getRandomLeverage = () => (Math.random() * 2 + 0.5).toFixed(2);
+
+function createBatchFromImages(images = [], promptText = 'Midjourney selection') {
+  if (!images.length) return false;
+  currentBatch = images.map((image, index) => ({
+    id: `apiframe-${index}-${Date.now()}`,
+    prompt: `${promptText} :: variation ${index + 1}`,
+    probability: getRandomStat(),
+    edge: (Math.random() * 0.1 + 0.01).toFixed(2),
+    leverage: getRandomLeverage(),
+    status: index % 3 === 0 ? 'Open trades' : 'Ready',
+    image
+  }));
+  renderBatch();
+  return true;
+}
 
 function generateBatch() {
   currentBatch = Array.from({ length: 16 }, (_, i) => {
@@ -38,7 +42,7 @@ function generateBatch() {
       edge: (Math.random() * 0.1 + 0.01).toFixed(2),
       leverage: getRandomLeverage(),
       status: i % 3 === 0 ? 'Open trades' : 'Ready',
-      image: assetImages[i % assetImages.length]
+      image: `https://images.unsplash.com/photo-1${Math.random().toString().slice(2, 5)}?auto=format&fit=crop&w=600&q=60`
     };
   });
   renderBatch();
@@ -84,17 +88,57 @@ function updateStatus(message) {
   }
 }
 
-function simulateGemini() {
+async function loadLatestBatch() {
+  try {
+    const response = await fetch(`data/latest.json?_=${Date.now()}`);
+    if (!response.ok) throw new Error(`Status ${response.status}`);
+    const payload = await response.json();
+    if (createBatchFromImages(payload.image_urls, payload.prompt)) {
+      updateStatus('Loaded the latest Apiframe batch.');
+      promptEditor.value = payload.prompt ?? promptEditor.value;
+      return true;
+    }
+    throw new Error('No images returned');
+  } catch (err) {
+    console.warn('Loading Apiframe batch failed:', err.message);
+    return false;
+  }
+}
+
+async function loadSampleBatch() {
+  try {
+    const response = await fetch('data/sample-latest.json');
+    if (!response.ok) throw new Error(`Status ${response.status}`);
+    const payload = await response.json();
+    if (createBatchFromImages(payload.image_urls, payload.prompt)) {
+      updateStatus('Displaying the sample Midjourney batch.');
+      promptEditor.value = payload.prompt;
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn('Loading sample batch failed:', err.message);
+    return false;
+  }
+}
+
+document.getElementById('generate-prompts').addEventListener('click', () => {
   const prompt = basePrompts[Math.floor(Math.random() * basePrompts.length)];
   promptEditor.value = `${prompt} :: ${new Date().toLocaleString()} Gemini remix`;
   updateStatus('Prompt refreshed with Gemini insights.');
-}
-
-document.getElementById('generate-prompts').addEventListener('click', simulateGemini);
-document.getElementById('fetch-batch').addEventListener('click', () => {
-  generateBatch();
-  updateStatus('Fetched the latest Midjourney batch.');
 });
+
+document.getElementById('fetch-batch').addEventListener('click', async () => {
+  const loaded = await loadLatestBatch();
+  if (!loaded) {
+    const fallback = await loadSampleBatch();
+    if (!fallback) {
+      generateBatch();
+      updateStatus('Fallback random assets loaded.');
+    }
+  }
+});
+
 document.getElementById('upload-selection').addEventListener('click', () => {
   if (selection.size === 0) {
     updateStatus('Select at least one image before uploading.');
@@ -104,4 +148,12 @@ document.getElementById('upload-selection').addEventListener('click', () => {
   setTimeout(() => updateStatus('Upload queued. Metadata synced per Adobe guidelines.'), 1200);
 });
 
-generateBatch();
+(async () => {
+  const loaded = await loadLatestBatch();
+  if (!loaded) {
+    const sample = await loadSampleBatch();
+    if (!sample) {
+      generateBatch();
+    }
+  }
+})();

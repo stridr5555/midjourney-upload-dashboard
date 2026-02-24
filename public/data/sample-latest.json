@@ -1,0 +1,12 @@
+{
+  "prompt": "Vivid gan-generated galaxy over serene desert",
+  "task_id": "sample-0000",
+  "generatedAt": "2026-01-01T12:00:00.000Z",
+  "image_urls": [
+    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=800&q=60",
+    "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=800&q=60",
+    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=800&q=60",
+    "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=800&q=60",
+    "https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?auto=format&fit=crop&w=800&q=60"
+  ]
+}

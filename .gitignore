@@ -20,5 +20,5 @@ SURVEY-FILLING-INSTRUCTIONS.md
 TOOLS.md
 USER.md
 foundry-extension-helper.ts
-package-lock.json
 .vercel
+public/data/latest.json
