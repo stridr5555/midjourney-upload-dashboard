@@ -4,34 +4,33 @@ This repo now packages a self-contained dashboard that showcases how the Midjour
 
 - renders a 16-card batch of Midjourney-style outputs with prompts, probabilities, edges, and leverage indicators
 - rails each card with a selection checkbox and incremental status indicators
-- wires the button bar to regenerate prompts, pull a refreshed `data/latest.json` payload, and simulate uploading the chosen assets to Adobe Stock
-- loads real results from [Apiframe's Imagine/Fetch API](https://docs.apiframe.ai/api-endpoints/imagine) whenever `public/data/latest.json` is populated
-- falls back to the committed `public/data/sample-latest.json` or randomized placeholders when no API payload is available
+- wires the button bar to call Apiframe endpoints (`/api/generate`, `/api/refresh`) and a headless Midjourney scraper (`/api/scrape-midjourney`), so pressing the buttons loads real imagery instead of static placeholders
+- uses the built-in Node server (`server.js`) to serve the dashboard, refresh the Apiframe payload, and run the Playwright scraper on demand
 
 ## Local development
 
 1. `npm install` (already done, but rerun if you change dependencies).
-2. `npm run apiframe:refresh` to summon the Apiframe Imagine API (requires `APIFRAME_API_KEY` in your environment or present in `../api.txt` labeled `Apiframe`).
+2. Place your Apiframe API key in the environment (`APIFRAME_API_KEY` or `APIFRAME_KEY`) or add it to `../api.txt` with a label containing `Apiframe`.
 3. `npm run build` to copy the `public/` assets (including `data/`) into `dist/` so the dashboard can be served.
-4. `python -m http.server 4173 --directory dist` (or the `serve` command of your choice) and visit [http://127.0.0.1:4173](http://127.0.0.1:4173).
+4. `node server.js` and visit [http://127.0.0.1:4173](http://127.0.0.1:4173).
 
-`npm run apiframe:refresh` will:
+### Button behaviors
 
-- post a curated prompt to `https://api.apiframe.pro/imagine`
-- poll the `fetch` endpoint until images are ready (or stop after a few seconds)
-- emit `public/data/latest.json`, which is automatically loaded by the dashboard
+- **Generate Images**: Sends the prompt from the editor to `POST /api/generate`, which uses the Apiframe Imagine API and immediately renders the resulting images once the job completes.
+- **Refresh Apiframe Batch**: Calls `POST /api/refresh` to get a fresh random prompt from Apiframe, mirroring the previous `npm run apiframe:refresh` helper but now from the UI.
+- **Scrape Midjourney Explore**: Calls `POST /api/scrape-midjourney`, which spins up Playwright, opens `https://www.midjourney.com/explore?tab=top`, and extracts the first 16 card images and their labels.
 
-If the API key is missing, the script warns and exits, leaving the sample payload untouched.
+The `Upload Selected to Adobe Stock` button is still wired to the simulated upload flow; we can later plug in the Puppeteer automation once the headless job is stable.
 
-## Folder layout
+## Automation helpers
 
-- `public/` – the static files that get copied to `dist/` (HTML, JS, CSS, and fallback data). `main.js` orchestrates the UI on the client and talks to `data/latest.json`.
-- `scripts/build.js` – copies `public/` → `dist/` during `npm run build`.
-- `scripts/apiframe-fetch.js` – optional helper script to populate `public/data/latest.json` from the Apiframe Imagine/Fetch APIs. Run it before building to seed the dashboard with real assets.
-- `dist/` – build output served to browsers (ignored via `.gitignore`).
+- `scripts/apiframe-fetch.js`: still useful if you want to seed `public/data/latest.json` during CI or a build pipeline. It now delegates to `lib/apiframe.js` and can write the payload to both `public/` and `dist/`.
+- `server.js`: serves the built assets and exposes `/api/refresh`, `/api/generate`, and `/api/scrape-midjourney`. It's the entry point for the live dashboard.
+- `lib/apiframe.js`: shared logic for posting imagine jobs, polling fetch, and writing the payload.
+- `lib/midjourney-scraper.js`: uses Playwright to crawl Midjourney's Explore page and extract image/prompt pairs.
 
 ## Next moves
 
-- Expand `scripts/apiframe-fetch.js` into a headless worker (Playwright/Discord automation) if you want on-demand Midjourney generations instead of manual refreshes.
-- Hook the `Upload Selected to Adobe Stock` button into the Puppeteer automation once the credentials and metadata schema are hashed out.
-- Connect the repo to a deployment target (Vercel or another host) once the rate limit clears and `dist/` contains the latest build.
+- Add a webhook receiver or real-time push so the `Upload Selected` button logs metadata and routes to the Adobe automation.
+- Deploy `server.js` + `dist/` to a Node-friendly host so the button clicks can hit the Apiframe/Midjourney endpoints outside the local environment.
+- Extend the scraper to capture prompt text, probability, and other metadata from the Midjourney cards if a stable selector emerges.
