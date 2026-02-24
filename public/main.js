@@ -88,19 +88,19 @@ function updateStatus(message) {
   }
 }
 
-async function loadLatestBatch() {
+async function fetchLatestFromApi() {
   try {
-    const response = await fetch(`data/latest.json?_=${Date.now()}`);
-    if (!response.ok) throw new Error(`Status ${response.status}`);
+    const response = await fetch('/api/refresh', { method: 'POST' });
+    if (!response.ok) throw new Error(`status ${response.status}`);
     const payload = await response.json();
-    if (createBatchFromImages(payload.image_urls, payload.prompt)) {
-      updateStatus('Loaded the latest Apiframe batch.');
+    if (createBatchFromImages(payload.image_urls ?? payload.raw?.image_urls ?? [], payload.prompt)) {
+      updateStatus('Loaded assets from Apiframe.');
       promptEditor.value = payload.prompt ?? promptEditor.value;
       return true;
     }
     throw new Error('No images returned');
   } catch (err) {
-    console.warn('Loading Apiframe batch failed:', err.message);
+    console.warn('Fetching latest batch failed:', err.message);
     return false;
   }
 }
@@ -129,7 +129,7 @@ document.getElementById('generate-prompts').addEventListener('click', () => {
 });
 
 document.getElementById('fetch-batch').addEventListener('click', async () => {
-  const loaded = await loadLatestBatch();
+  const loaded = await fetchLatestFromApi();
   if (!loaded) {
     const fallback = await loadSampleBatch();
     if (!fallback) {
@@ -138,6 +138,7 @@ document.getElementById('fetch-batch').addEventListener('click', async () => {
     }
   }
 });
+
 
 document.getElementById('upload-selection').addEventListener('click', () => {
   if (selection.size === 0) {
@@ -149,7 +150,7 @@ document.getElementById('upload-selection').addEventListener('click', () => {
 });
 
 (async () => {
-  const loaded = await loadLatestBatch();
+  const loaded = await fetchLatestFromApi();
   if (!loaded) {
     const sample = await loadSampleBatch();
     if (!sample) {
