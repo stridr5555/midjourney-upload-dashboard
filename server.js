@@ -41,12 +41,33 @@ function sendJson(res, payload, status = 200) {
   res.end(JSON.stringify(payload));
 }
 
+async function persistPayload(payload) {
+  const dirs = [path.resolve('public', 'data'), path.resolve('dist', 'data')];
+  await Promise.all(dirs.map(async dir => {
+    await fs.ensureDir(dir);
+    await fs.writeJson(path.join(dir, 'latest.json'), payload, { spaces: 2 });
+  }));
+}
+
 async function handleRefresh(req, res) {
   if (!getApiKey()) {
     return sendJson(res, { error: 'Missing Apiframe API key' }, 400);
   }
   try {
-    const payload = await refreshApiframePayload();
+    let payload = await refreshApiframePayload();
+    if (!payload.image_urls?.length) {
+      const cards = await scrapeMidjourneyTop();
+      if (cards.length) {
+        payload = {
+          task_id: payload.task_id ?? 'scrape-fallback',
+          prompt: cards[0].prompt || 'Midjourney explore fallback',
+          generatedAt: new Date().toISOString(),
+          image_urls: cards.map(card => card.src),
+          raw: { source: 'scrape', cards }
+        };
+        await persistPayload(payload);
+      }
+    }
     return sendJson(res, payload);
   } catch (err) {
     return sendJson(res, { error: err.message }, 500);
