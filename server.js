@@ -2,6 +2,7 @@ import http from 'http';
 import fs from 'fs-extra';
 import path from 'path';
 import { refreshApiframePayload, getApiKey } from './lib/apiframe.js';
+import { scrapeMidjourneyTop } from './lib/midjourney-scraper.js';
 
 const distDir = path.resolve('dist');
 const port = process.env.PORT || 4173;
@@ -18,21 +19,75 @@ function sendFile(filePath, res, contentType = 'text/html') {
     });
 }
 
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => {
+      data += chunk.toString();
+    });
+    req.on('end', () => {
+      if (!data) return resolve({});
+      try {
+        resolve(JSON.parse(data));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
+function sendJson(res, payload, status = 200) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(payload));
+}
+
 async function handleRefresh(req, res) {
   if (!getApiKey()) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Missing Apiframe API key' }));
-    return;
+    return sendJson(res, { error: 'Missing Apiframe API key' }, 400);
   }
   try {
     const payload = await refreshApiframePayload();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(payload));
+    return sendJson(res, payload);
   } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: err.message }));
+    return sendJson(res, { error: err.message }, 500);
   }
 }
+
+async function handleGenerate(req, res) {
+  if (!getApiKey()) {
+    return sendJson(res, { error: 'Missing Apiframe API key' }, 400);
+  }
+  try {
+    const body = await readJsonBody(req);
+    const prompt = (body.prompt || '').trim();
+    if (!prompt) {
+      return sendJson(res, { error: 'Provide a prompt' }, 422);
+    }
+    const payload = await refreshApiframePayload({ prompt });
+    return sendJson(res, payload);
+  } catch (err) {
+    return sendJson(res, { error: err.message }, 500);
+  }
+}
+
+async function handleScrape(req, res) {
+  try {
+    const cards = await scrapeMidjourneyTop();
+    if (!cards.length) {
+      return sendJson(res, { error: 'No cards scraped' }, 502);
+    }
+    return sendJson(res, { images: cards });
+  } catch (err) {
+    return sendJson(res, { error: err.message }, 500);
+  }
+}
+
+const contentTypes = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json'
+};
 
 const server = http.createServer((req, res) => {
   const { url, method } = req;
@@ -40,17 +95,20 @@ const server = http.createServer((req, res) => {
     handleRefresh(req, res);
     return;
   }
+  if (url === '/api/generate' && method === 'POST') {
+    handleGenerate(req, res);
+    return;
+  }
+  if (url === '/api/scrape-midjourney' && method === 'POST') {
+    handleScrape(req, res);
+    return;
+  }
+
   let filePath = path.join(distDir, url.split('?')[0]);
   if (url === '/' || url === '/index.html') {
     filePath = path.join(distDir, 'index.html');
   }
   const ext = path.extname(filePath);
-  const contentTypes = {
-    '.html': 'text/html',
-    '.js': 'application/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json'
-  };
   const contentType = contentTypes[ext] || 'application/octet-stream';
   fs.pathExists(filePath)
     .then(exists => {

@@ -73,6 +73,54 @@ function updateStatus(message) {
 }
 
 async function fetchLatestFromApi() {
+
+async function generateImagesFromPrompt() {
+  const prompt = promptEditor.value.trim();
+  if (!prompt) {
+    updateStatus('Type a prompt first.');
+    return false;
+  }
+  updateStatus('Generating images for your prompt...');
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const payload = await response.json();
+    if (createBatchFromImages(payload.image_urls ?? payload.raw?.image_urls ?? [], payload.prompt)) {
+      updateStatus('Generated images ready.');
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn('Generate failed:', err.message);
+    updateStatus('Generation failed.');
+    return false;
+  }
+}
+
+async function scrapeMidjourneyExplore() {
+  updateStatus('Scraping Midjourney explore page...');
+  try {
+    const response = await fetch('/api/scrape-midjourney', { method: 'POST' });
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const payload = await response.json();
+    const images = payload.images?.map(img => img.src).filter(Boolean) ?? [];
+    if (createBatchFromImages(images, 'Midjourney explore scrape')) {
+      updateStatus('Fresh Midjourney gallery loaded.');
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn('Scrape failed:', err.message);
+    updateStatus('Unable to scrape Midjourney right now.');
+    return false;
+  }
+}
+
+
   try {
     const response = await fetch('/api/refresh', { method: 'POST' });
     if (!response.ok) throw new Error(`status ${response.status}`);
@@ -106,10 +154,13 @@ async function loadSampleBatch() {
   }
 }
 
-document.getElementById('generate-prompts').addEventListener('click', () => {
-  const prompt = basePrompts[Math.floor(Math.random() * basePrompts.length)];
-  promptEditor.value = prompt;
-  updateStatus('Prompt refreshed.');
+document.getElementById('generate-prompts').addEventListener('click', generateImagesFromPrompt);
+
+document.getElementById('scrape-midjourney').addEventListener('click', async () => {
+  const loaded = await scrapeMidjourneyExplore();
+  if (!loaded) {
+    updateStatus('Scrape returned nothing.');
+  }
 });
 
 document.getElementById('fetch-batch').addEventListener('click', async () => {
