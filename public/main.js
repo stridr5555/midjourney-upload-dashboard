@@ -8,14 +8,37 @@ const basePrompts = [
   'Mechanical butterfly close-up, macro depth, soft focus',
   'Celestial library, dramatic shafts of light, endless shelves'
 ];
+
 const grid = document.getElementById('grid');
 const promptEditor = document.getElementById('prompt-editor');
 const status = document.getElementById('status');
+const progressBar = document.getElementById('progress-bar');
+const logList = document.getElementById('log-list');
+
 let currentBatch = [];
 let selection = new Set();
 
 const getRandomStat = () => (Math.random() * 0.35 + 0.65).toFixed(2);
 const getRandomLeverage = () => (Math.random() * 2 + 0.5).toFixed(2);
+
+function pushLog(message, type = 'info') {
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  entry.textContent = `${new Date().toLocaleTimeString()} — ${message}`;
+  logList.prepend(entry);
+}
+
+function setProgress(percent) {
+  if (progressBar) {
+    progressBar.style.width = `${percent}%`;
+  }
+}
+
+function stageProgress(stage, context = 'Action') {
+  const ratios = { start: 10, mid: 55, finish: 100, scrape: 40, scrapeFinish: 90 };
+  setProgress(ratios[stage] ?? ratios.start);
+  pushLog(`${context}: ${stage}`, 'info');
+}
 
 function createBatchFromImages(images = [], promptText = 'Midjourney selection') {
   if (!images.length) return false;
@@ -73,66 +96,23 @@ function updateStatus(message) {
 }
 
 async function fetchLatestFromApi() {
-
-async function generateImagesFromPrompt() {
-  const prompt = promptEditor.value.trim();
-  if (!prompt) {
-    updateStatus('Type a prompt first.');
-    return false;
-  }
-  updateStatus('Generating images for your prompt...');
-  try {
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
-    });
-    if (!response.ok) throw new Error(`status ${response.status}`);
-    const payload = await response.json();
-    if (createBatchFromImages(payload.image_urls ?? payload.raw?.image_urls ?? [], payload.prompt)) {
-      updateStatus('Generated images ready.');
-      return true;
-    }
-    return false;
-  } catch (err) {
-    console.warn('Generate failed:', err.message);
-    updateStatus('Generation failed.');
-    return false;
-  }
-}
-
-async function scrapeMidjourneyExplore() {
-  updateStatus('Scraping Midjourney explore page...');
-  try {
-    const response = await fetch('/api/scrape-midjourney', { method: 'POST' });
-    if (!response.ok) throw new Error(`status ${response.status}`);
-    const payload = await response.json();
-    const images = payload.images?.map(img => img.src).filter(Boolean) ?? [];
-    if (createBatchFromImages(images, 'Midjourney explore scrape')) {
-      updateStatus('Fresh Midjourney gallery loaded.');
-      return true;
-    }
-    return false;
-  } catch (err) {
-    console.warn('Scrape failed:', err.message);
-    updateStatus('Unable to scrape Midjourney right now.');
-    return false;
-  }
-}
-
-
+  stageProgress('start', 'Refreshing Apiframe batch');
   try {
     const response = await fetch('/api/refresh', { method: 'POST' });
+    stageProgress('mid', 'Refreshing Apiframe batch');
     if (!response.ok) throw new Error(`status ${response.status}`);
     const payload = await response.json();
     if (createBatchFromImages(payload.image_urls ?? payload.raw?.image_urls ?? [], payload.prompt)) {
       updateStatus('Loaded assets from Apiframe.');
       promptEditor.value = payload.prompt ?? promptEditor.value;
+      stageProgress('finish', 'Refreshing Apiframe batch');
       return true;
     }
     throw new Error('No images returned');
   } catch (err) {
+    stageProgress('finish', 'Refreshing Apiframe batch');
     console.warn('Fetching latest batch failed:', err.message);
+    pushLog(err.message, 'error');
     return false;
   }
 }
@@ -154,15 +134,61 @@ async function loadSampleBatch() {
   }
 }
 
-document.getElementById('generate-prompts').addEventListener('click', generateImagesFromPrompt);
-
-document.getElementById('scrape-midjourney').addEventListener('click', async () => {
-  const loaded = await scrapeMidjourneyExplore();
-  if (!loaded) {
-    updateStatus('Scrape returned nothing.');
+async function generateImagesFromPrompt() {
+  const prompt = promptEditor.value.trim();
+  if (!prompt) {
+    updateStatus('Type a prompt first.');
+    return false;
   }
-});
+  stageProgress('start', 'Generating images');
+  updateStatus('Generating images for your prompt...');
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    stageProgress('mid', 'Generating images');
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const payload = await response.json();
+    if (createBatchFromImages(payload.image_urls ?? payload.raw?.image_urls ?? [], payload.prompt)) {
+      updateStatus('Generated images ready.');
+      stageProgress('finish', 'Generating images');
+      return true;
+    }
+    return false;
+  } catch (err) {
+    stageProgress('finish', 'Generating images');
+    console.warn('Generate failed:', err.message);
+    pushLog(err.message, 'error');
+    updateStatus('Generation failed.');
+    return false;
+  }
+}
 
+async function scrapeMidjourneyExplore() {
+  stageProgress('scrape', 'Scraping Midjourney explore');
+  try {
+    const response = await fetch('/api/scrape-midjourney', { method: 'POST' });
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const payload = await response.json();
+    const images = payload.images?.map(img => img.src).filter(Boolean) ?? [];
+    if (createBatchFromImages(images, 'Midjourney explore scrape')) {
+      updateStatus('Fresh Midjourney gallery loaded.');
+      stageProgress('scrapeFinish', 'Scraping Midjourney explore');
+      return true;
+    }
+    return false;
+  } catch (err) {
+    stageProgress('finish', 'Scraping Midjourney explore');
+    console.warn('Scrape failed:', err.message);
+    pushLog(err.message, 'error');
+    updateStatus('Unable to scrape Midjourney right now.');
+    return false;
+  }
+}
+
+document.getElementById('generate-prompts').addEventListener('click', generateImagesFromPrompt);
 document.getElementById('fetch-batch').addEventListener('click', async () => {
   const loaded = await fetchLatestFromApi();
   if (!loaded) {
@@ -172,7 +198,12 @@ document.getElementById('fetch-batch').addEventListener('click', async () => {
     }
   }
 });
-
+document.getElementById('scrape-midjourney').addEventListener('click', async () => {
+  const loaded = await scrapeMidjourneyExplore();
+  if (!loaded) {
+    updateStatus('Scrape returned nothing.');
+  }
+});
 
 document.getElementById('upload-selection').addEventListener('click', () => {
   if (selection.size === 0) {
