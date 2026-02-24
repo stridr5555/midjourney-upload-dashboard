@@ -8,6 +8,16 @@ const basePrompts = [
   'Mechanical butterfly close-up, macro depth, soft focus',
   'Celestial library, dramatic shafts of light, endless shelves'
 ];
+const assetImages = [
+  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=60',
+  'https://images.unsplash.com/photo-1482192597420-4817fdd3ea7e?auto=format&fit=crop&w=600&q=60',
+  'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=60',
+  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=60',
+  'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=600&q=60',
+  'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=60',
+  'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=600&q=60',
+  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=60'
+];
 
 const grid = document.getElementById('grid');
 const promptEditor = document.getElementById('prompt-editor');
@@ -28,7 +38,7 @@ function generateBatch() {
       edge: (Math.random() * 0.1 + 0.01).toFixed(2),
       leverage: getRandomLeverage(),
       status: i % 3 === 0 ? 'Open trades' : 'Ready',
-      image: `https://images.unsplash.com/photo-1${Math.random().toString().slice(2, 5)}?auto=format&fit=crop&w=600&q=60`
+      image: assetImages[i % assetImages.length]
     };
   });
   renderBatch();
