@@ -54,20 +54,8 @@ async function handleRefresh(req, res) {
     return sendJson(res, { error: 'Missing Apiframe API key' }, 400);
   }
   try {
-    let payload = await refreshApiframePayload();
-    if (!payload.image_urls?.length) {
-      const cards = await scrapeMidjourneyTop();
-      if (cards.length) {
-        payload = {
-          task_id: payload.task_id ?? 'scrape-fallback',
-          prompt: cards[0].prompt || 'Midjourney explore fallback',
-          generatedAt: new Date().toISOString(),
-          image_urls: cards.map(card => card.src),
-          raw: { source: 'scrape', cards }
-        };
-        await persistPayload(payload);
-      }
-    }
+    const payload = await refreshApiframePayload();
+    await persistPayload(payload);
     return sendJson(res, payload);
   } catch (err) {
     return sendJson(res, { error: err.message }, 500);
@@ -85,6 +73,7 @@ async function handleGenerate(req, res) {
       return sendJson(res, { error: 'Provide a prompt' }, 422);
     }
     const payload = await refreshApiframePayload({ prompt });
+    await persistPayload(payload);
     return sendJson(res, payload);
   } catch (err) {
     return sendJson(res, { error: err.message }, 500);
