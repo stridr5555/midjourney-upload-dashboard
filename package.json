@@ -1,0 +1,12 @@
+{
+  "name": "midjourney-upload-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.js",
+    "vercel-build": "npm run build"
+  },
+  "devDependencies": {
+    "fs-extra": "^11.1.1"
+  }
+}

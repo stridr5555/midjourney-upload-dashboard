@@ -4,6 +4,7 @@ typeorm/
 *.log
 api.txt
 node_modules/
+dist/
 .env
 openclaw.log
 .cache
@@ -20,3 +21,4 @@ TOOLS.md
 USER.md
 foundry-extension-helper.ts
 package-lock.json
+.vercel

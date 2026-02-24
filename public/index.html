@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Midjourney Upload Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0b0c10; color: #e7e7e7; margin: 0; }
+    header { background: #1f2833; padding: 1.5rem; text-align: center; border-bottom: 1px solid #45a29e; }
+    main { padding: 1.5rem; max-width: 960px; margin: 0 auto; }
+    .buttons > button { margin-right: .5rem; margin-bottom: .5rem; padding: .65rem 1rem; border: none; border-radius: 999px; background:#45a29e; color:#0b0c10; font-weight:600; cursor:pointer; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:1rem; margin-top:1rem; }
+    .card { background:#121822; border:1px solid #45a29e; border-radius:12px; padding:1rem; display:flex; flex-direction:column; gap:.5rem; }
+    .card img { width:100%; border-radius:8px; height:120px; object-fit:cover; background:#1f2833; }
+    .meta { font-size:.85rem; color:#a6a6a6; }
+    textarea { width:100%; border-radius:8px; border:1px solid #45a29e; padding:.75rem; background:#1f2833; color:#f5f5f5; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Midjourney Upload Dashboard</h1>
+    <p>Generate prompts, curate 16 image batch, and stage uploads.</p>
+  </header>
+  <main>
+    <section>
+      <div class="buttons">
+        <button type="button">Generate Prompts</button>
+        <button type="button">Fetch Latest MJ Best Images</button>
+        <button type="button">Upload Selected to Adobe Stock</button>
+      </div>
+      <textarea rows="4" placeholder="Prompt editor & Gemini suggestions..."></textarea>
+    </section>
+    <section class="grid">
+      ${Array.from({ length: 16 }, (_, i) => `
+        <article class="card">
+          <img src="https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?auto=format&fit=crop&w=600&q=60" alt="Future prompt ${i + 1}" />
+          <strong>Prompt #${i + 1}</strong>
+          <span class="meta">Probability: 73% · Edge: 0.05 · Lvrg: 1.5x</span>
+          <label><input type="checkbox"> Select for Adobe upload</label>
+        </article>
+      `).join('')}
+    </section>
+    <section style="margin-top:2rem; line-height:1.6;">
+      <h2>Current Flow</h2>
+      <ul>
+        <li>Scrape Midjourney <em>Top</em> gallery for prompts, styles, and colors.</li>
+        <li>Use Gemini insights to craft metadata (title, description, keywords) following Adobe guidance.</li>
+        <li>Select favorites and stage them for Adobe Stock upload via the native uploader.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
